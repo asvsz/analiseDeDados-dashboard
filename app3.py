@@ -27,7 +27,7 @@ page = st.sidebar.radio("Selecione a página:", ["Página 1 - Resumo Geral", "P�
 # Função para exibir gráficos
 def plot_histogram(data):
     fig, ax = plt.subplots()
-    ax.hist(data['mag'], bins=30, alpha=0.7, color='blue')
+    ax.hist(data['magnitude'], bins=30, alpha=0.7, color='blue')
     ax.set_title('Distribuição da Magnitude dos Terremotos')
     ax.set_xlabel('Magnitude')
     ax.set_ylabel('Frequência')
@@ -35,7 +35,7 @@ def plot_histogram(data):
 
 def plot_scatter(data):
     fig, ax = plt.subplots()
-    ax.scatter(data['depth'], data['mag'], alpha=0.5)
+    ax.scatter(data['depth'], data['magnitude'], alpha=0.5)
     ax.set_title('Magnitude vs Profundidade')
     ax.set_xlabel('Profundidade (km)')
     ax.set_ylabel('Magnitude')
@@ -67,10 +67,13 @@ if page == "Página 1 - Resumo Geral":
 
     # Filtrando dados com base nos filtros da sidebar
     if not combined_data.empty:
-        # Convertendo a coluna 'time' para datetime
-        combined_data['time'] = pd.to_datetime(combined_data['time'], utc=True)
+        # Convertendo a coluna 'date' para datetime, permitindo formatos mistos
+        combined_data['date'] = pd.to_datetime(combined_data['date'], errors='coerce', utc=True)
 
-        # Adicionando filtros dinâmicos aqui (você pode personalizar conforme necessário)
+        # Remover entradas com data inválida (se houver)
+        combined_data = combined_data.dropna(subset=['date'])
+
+        # Adicionando filtros dinâmicos
         start_date = st.date_input("Data de Início", value=pd.to_datetime("2023-01-01").date())
         end_date = st.date_input("Data de Fim", value=pd.to_datetime("2024-12-31").date())
         min_magnitude = st.slider("Magnitude Mínima:", min_value=0.0, max_value=10.0, value=0.0)
@@ -82,17 +85,17 @@ if page == "Página 1 - Resumo Geral":
 
         # Filtrando os dados
         filtered_data = combined_data[
-            (combined_data['time'] >= start_date) &
-            (combined_data['time'] <= end_date) &
-            (combined_data['mag'] >= min_magnitude) &
-            (combined_data['mag'] <= max_magnitude)
+            (combined_data['date'] >= start_date) &
+            (combined_data['date'] <= end_date) &
+            (combined_data['magnitude'] >= min_magnitude) &
+            (combined_data['magnitude'] <= max_magnitude)
             ]
 
         # Exibir os gráficos
 
         # Tabela de detalhes
         st.subheader("Tabela de Detalhes dos Terremotos (obs.: Demora a carregar)")
-        st.dataframe(filtered_data[['time', 'mag', 'latitude', 'longitude', 'depth', 'year']])
+        st.dataframe(filtered_data[['date', 'magnitude', 'latitude', 'longitude', 'depth', 'place', 'tsunami', 'alert', 'year']])
 
         st.subheader("Histograma de Magnitude")
         plot_histogram(filtered_data)
@@ -107,11 +110,14 @@ if page == "Página 1 - Resumo Geral":
 if page == "Página 2 - Análise Comparativa":
     st.title("Análise Comparativa entre 2023 e 2024")
 
-    # Gráficos de contagem de terremotos por mês
     if earthquakes_2023 is not None and earthquakes_2024 is not None:
-        earthquakes_2023['month'] = pd.to_datetime(earthquakes_2023['time']).dt.to_period('M')
-        earthquakes_2024['month'] = pd.to_datetime(earthquakes_2024['time']).dt.to_period('M')
+        # Convertendo 'time' para datetime no dataset de 2023
+        earthquakes_2023['month'] = pd.to_datetime(earthquakes_2023['time'], errors='coerce').dt.to_period('M')
 
+        # Convertendo 'date' para datetime no dataset de 2024
+        earthquakes_2024['month'] = pd.to_datetime(earthquakes_2024['date'], errors='coerce').dt.to_period('M')
+
+        # Gráficos de contagem de terremotos por mês
         monthly_counts_2023 = earthquakes_2023['month'].value_counts().sort_index()
         monthly_counts_2024 = earthquakes_2024['month'].value_counts().sort_index()
 
@@ -125,8 +131,8 @@ if page == "Página 2 - Análise Comparativa":
         st.pyplot(fig)
 
         # Gráfico de barras de média de magnitude por ano
-        avg_mag_2023 = earthquakes_2023['mag'].mean()
-        avg_mag_2024 = earthquakes_2024['mag'].mean()
+        avg_mag_2023 = earthquakes_2023['mag'].mean()  # Verifique se o nome da coluna é 'magnitude'
+        avg_mag_2024 = earthquakes_2024['magnitude'].mean()  # Verifique se o nome da coluna é 'magnitude'
 
         fig, ax = plt.subplots()
         ax.bar(['2023', '2024'], [avg_mag_2023, avg_mag_2024], color=['orange', 'green'])
@@ -153,3 +159,4 @@ if page == "Página 2 - Análise Comparativa":
         # Valor total de terremotos registrados
         total_earthquakes = len(earthquakes_2023) + len(earthquakes_2024)
         st.write(f"Total de Terremotos Registrados: {total_earthquakes}")
+
