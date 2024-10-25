@@ -5,6 +5,10 @@ import folium
 from folium.plugins import HeatMap
 from streamlit_folium import st_folium
 
+# Sidebar para navegação entre páginas
+st.sidebar.title("Navegação")
+page = st.sidebar.radio("Selecione a página:", ["Página 1 - Resumo Geral", "Página 2 - Análise Comparativa"])
+
 # Sidebar para upload dos arquivos
 st.sidebar.title("Upload de Arquivos")
 uploaded_file_2023 = st.sidebar.file_uploader("Carregar dados de terremotos de 2023", type=["csv"])
@@ -20,9 +24,7 @@ if uploaded_file_2023 is not None:
 if uploaded_file_2024 is not None:
     earthquakes_2024 = pd.read_csv(uploaded_file_2024)
 
-# Sidebar para navegação entre páginas
-st.sidebar.title("Navegação")
-page = st.sidebar.radio("Selecione a página:", ["Página 1 - Resumo Geral", "Página 2 - Análise Comparativa"])
+
 
 # Função para exibir gráficos
 def plot_histogram(data):
@@ -46,6 +48,23 @@ def plot_heatmap(data):
     heat_data = [[row['latitude'], row['longitude']] for index, row in data.iterrows()]
     HeatMap(heat_data).add_to(m)
     st_folium(m, width=700)
+
+def plot_monthly_average_magnitude(data):
+    # Convertendo para formato de data e extraindo o mês
+    data['month'] = pd.to_datetime(data['date']).dt.month
+
+    # Calculando a média de magnitude por mês
+    monthly_avg_magnitude = data.groupby('month')['magnitude'].mean()
+
+    # Gráfico de barras para a média de magnitude mensal
+    fig, ax = plt.subplots()
+    monthly_avg_magnitude.plot(kind='bar', color='skyblue', ax=ax)
+    ax.set_title('Média de Magnitude dos Terremotos por Mês')
+    ax.set_xlabel('Mês')
+    ax.set_ylabel('Magnitude Média')
+    ax.set_xticks(range(12))
+    ax.set_xticklabels(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], rotation=45)
+    st.pyplot(fig)
 
 # Página 1: Resumo Geral dos Terremotos
 if page == "Página 1 - Resumo Geral":
@@ -90,6 +109,8 @@ if page == "Página 1 - Resumo Geral":
 
         total_filtered_earthquakes = len(filtered_data)
         st.markdown(f"<h2>Total de Terremotos Filtrados: {total_filtered_earthquakes}</h2>", unsafe_allow_html=True)
+
+        plot_monthly_average_magnitude(filtered_data)
 
         st.subheader("Histograma de Magnitude")
         plot_histogram(filtered_data)
@@ -142,6 +163,14 @@ if page == "Página 2 - Análise Comparativa":
 
         all_months_str = [str(month) for month in all_months]
 
+        # Tabela de detalhes filtrados
+        st.subheader("Tabela de Detalhes dos Terremotos Filtrados por Profundidade")
+        st.write("Dados de 2023:")
+        st.dataframe(filtered_depth_2023[['time', 'mag', 'latitude', 'longitude', 'depth', 'place']])
+
+        st.write("Dados de 2024:")
+        st.dataframe(filtered_depth_2024[['date', 'magnitude', 'latitude', 'longitude', 'depth', 'place']])
+
         # Gráfico de linhas para total de terremotos por mês
         fig, ax = plt.subplots()
         ax.plot(all_months_str, counts_2023, label='2023', marker='o', color='orange', linestyle='-', linewidth=2)
@@ -186,10 +215,4 @@ if page == "Página 2 - Análise Comparativa":
         ax.set_title('Distribuição de Terremotos por Lugar em 2024 (Filtrado por Profundidade)')
         st.pyplot(fig)
 
-        # Tabela de detalhes filtrados
-        st.subheader("Tabela de Detalhes dos Terremotos Filtrados por Profundidade")
-        st.write("Dados de 2023:")
-        st.dataframe(filtered_depth_2023[['time', 'mag', 'latitude', 'longitude', 'depth', 'place']])
 
-        st.write("Dados de 2024:")
-        st.dataframe(filtered_depth_2024[['date', 'magnitude', 'latitude', 'longitude', 'depth', 'place']])
